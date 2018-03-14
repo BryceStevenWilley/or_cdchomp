@@ -39,7 +39,7 @@ struct sphereelem
 struct sphere
 {
    /* parsed from xml */
-   char linkname[32];
+   char linkname[64];
    double pos[3];
    double radius;
 };

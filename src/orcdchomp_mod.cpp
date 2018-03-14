@@ -42,6 +42,8 @@ extern "C" {
 
 #include <openrave/openrave.h>
 #include <openrave/planningutils.h>
+#include <fstream>
+#include <iostream>
 
 #include "orcdchomp_kdata.h"
 #include "orcdchomp_mod.h"
@@ -279,19 +281,19 @@ int mod::viewspheres(int argc, char * argv[], std::ostream& sout)
             /* add the sphere */
             this->e->Add(sbody);
             si++;
-               
+
          }
       }
 #endif
    }
-   
+
    return 0;
 }
 
 
 /* computedistancefield robot Herb2
  * computes a distance field in the vicinity of the passed kinbody
- * 
+ *
  * note: does aabb include disabled bodies? probably, but we might hope not ...
  * */
 int mod::computedistancefield(int argc, char * argv[], std::ostream& sout)
@@ -318,10 +320,10 @@ int mod::computedistancefield(int argc, char * argv[], std::ostream& sout)
    struct timespec ticks_tic;
    struct timespec ticks_toc;
    int sdf_data_loaded;
-   
+
    /* lock environment */
    lockenv = OpenRAVE::EnvironmentMutex::scoped_lock(this->e->GetMutex());
-   
+
    cube_extent = 0.02;
    aabb_padding = 0.2;
    cache_filename = 0;
@@ -351,7 +353,7 @@ int mod::computedistancefield(int argc, char * argv[], std::ostream& sout)
       for (; i<argc; i++) RAVELOG_ERROR("argument %s not known!\n", argv[i]);
       throw OpenRAVE::openrave_exception("Bad arguments!");
    }
-   
+
    RAVELOG_DEBUG("Using kinbody %s.\n", kinbody->GetName().c_str());
    RAVELOG_DEBUG("Using aabb_padding |%f|.\n", aabb_padding);
    RAVELOG_DEBUG("Using cube_extent |%f|.\n", cube_extent);
@@ -360,14 +362,14 @@ int mod::computedistancefield(int argc, char * argv[], std::ostream& sout)
 
    /* check that we have everything */
    if (!kinbody.get()) throw OpenRAVE::openrave_exception("Did not pass all required args!");
-   
+
    /* make sure we don't already have an sdf loaded for this kinbody */
    for (i=0; i<this->n_sdfs; i++)
       if (strcmp(this->sdfs[i].kinbody_name, kinbody->GetName().c_str()) == 0)
          break;
    if (i<this->n_sdfs)
       throw OpenRAVE::openrave_exception("We already have an sdf for this kinbody!");
-   
+
    /* copy in name */
    if (strlen(kinbody->GetName().c_str())+1 > sizeof(sdf_new.kinbody_name))
       throw OpenRAVE::openrave_exception("ugh, orcdchomp currently doesn't support long kinbody names!");
@@ -578,8 +580,54 @@ int mod::computedistancefield(int argc, char * argv[], std::ostream& sout)
          if (i != sdf_new.grid->ncells)
             RAVELOG_ERROR("Error, couldn't write the sdf data to the file!\n");
       }
-   }
-   
+   }   
+        /*// Now, for a specfic resolution, get the distance for each part of the field, and print in JSON format.
+        std::ofstream out;
+        //out.open(std::string("bryce_ver_") + std::string(cache_filename));
+        const std::string xy = std::string("bryce_ver_") + std::string(cache_filename);
+        out.open(xy.c_str());
+
+        // Start point and resolution, goes to sdf_new.grid->length.
+        double start[3];
+        start[0] = 0.0;
+        start[1] = 0.0;
+        start[2] = 0.0;
+        double resolution = 0.005;
+
+        out << "[";
+        for (double x = start[0]; x <= sdf_new.grid->lengths[0]; x+= resolution)
+        {
+          out << "[";
+          for (double y = start[1]; y <= sdf_new.grid->lengths[1]; y += resolution)
+          {
+            out << "[";
+            for (double z = start[2]; z <= sdf_new.grid->lengths[2]; z += resolution)
+            {
+              double val;
+              double new_point[3];
+              new_point[0] = x;
+              new_point[1] = y;
+              new_point[2] = z;
+              cd_grid_double_interp(sdf_new.grid, new_point, &val); 
+              out << val;     
+              if (z + resolution <= sdf_new.grid->lengths[2])
+              {
+                out << ",";
+              }
+            }
+            out << "]";
+            if (y + resolution <= sdf_new.grid->lengths[1])
+                out << ",";
+          }
+          out << "]";
+          if (x + resolution <= sdf_new.grid->lengths[0])
+              out << ",";
+          out << std::endl;
+        }
+        out << "]";
+        std::cout << "Output json version of sdf at bryce_ver_" << cache_filename << std::endl;
+        */
+
    /* allocate a new sdf struct, and copy the new one there! */
    this->sdfs = (struct sdf *) realloc(this->sdfs, (this->n_sdfs+1)*sizeof(struct sdf));
    this->sdfs[this->n_sdfs] = sdf_new;
@@ -607,10 +655,10 @@ int mod::addfield_fromobsarray(int argc, char * argv[], std::ostream& sout)
    int gsdf_sizearray[3];
    double pose_world_gsdf[7];
    struct sdf sdf_new;
-   
+
    /* lock environment */
    lockenv = OpenRAVE::EnvironmentMutex::scoped_lock(this->e->GetMutex());
-   
+
    obsarray = 0;
    for (i=0; i<3; i++) sizes[i] = 0;
    for (i=0; i<3; i++) lengths[i] = 0.0;
@@ -664,14 +712,14 @@ int mod::addfield_fromobsarray(int argc, char * argv[], std::ostream& sout)
       for (; i<argc; i++) RAVELOG_ERROR("argument %s not known!\n", argv[i]);
       throw OpenRAVE::openrave_exception("Bad arguments!");
    }
-   
+
    RAVELOG_DEBUG("Using kinbody %s.\n", kinbody->GetName().c_str());
    RAVELOG_DEBUG("Using obsarray %p.\n", obsarray);
    RAVELOG_DEBUG("Using sizes %d %d %d.\n", sizes[0], sizes[1], sizes[2]);
    RAVELOG_DEBUG("Using lengths %f %f %f.\n", lengths[0], lengths[1], lengths[2]);
    RAVELOG_DEBUG("Using pose %f %f %f %f %f %f %f.\n",
       pose[0], pose[1], pose[2], pose[3], pose[4], pose[5], pose[6]);
-   
+
    /* check that we have everything */
    if (!kinbody.get()) throw OpenRAVE::openrave_exception("Did not pass a kinbody!");
    if (!obsarray) throw OpenRAVE::openrave_exception("Did not pass an obsarray!");

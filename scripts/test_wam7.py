@@ -74,9 +74,25 @@ for b in e.GetBodies():
 
 # disable the robot to compute the distance field for all other objects ...
 raw_input('Press [Enter] compute robot distance field ...')
-r.Enable(False)
-m_chomp.computedistancefield(kinbody=r,cache_filename='sdf_tablemug.dat')
-r.Enable(True)
+#r.Enable(False)
+for b in e.GetBodies():
+    b.Enable(False)
+
+for k in e.GetBodies():
+    if (k == r):
+        continue
+    k.Enable(True)
+    m_chomp.computedistancefield(
+            kinbody=k, 
+            cache_filename='sdf_chomp_' + k.GetName() + 'tablemug.dat'
+    )
+    k.Enable(False)
+
+for b in e.GetBodies():
+    b.Enable(True)
+
+#m_chomp.computedistancefield(kinbody=table,cache_filename='sdf_tablemug.dat')
+#r.Enable(True)
 
 raw_input('Press [Enter] run chomp ...')
 try:
