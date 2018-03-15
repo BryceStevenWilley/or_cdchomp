@@ -50,6 +50,7 @@ public:
    int create(int argc, char * argv[], std::ostream& sout);
    int iterate(int argc, char * argv[], std::ostream& sout);
    int gettraj(int argc, char * argv[], std::ostream& sout);
+   int getcost(int argc, char * argv[], std::ostream& sout);
    int destroy(int argc, char * argv[], std::ostream& sout);
 
    mod(OpenRAVE::EnvironmentBasePtr penv) : OpenRAVE::ModuleBase(penv)
@@ -61,9 +62,10 @@ public:
       RegisterCommand("viewfields",orcwrap(boost::bind(&mod::viewfields,this,_1,_2,_3)),"view fields");
       RegisterCommand("removefield",orcwrap(boost::bind(&mod::removefield,this,_1,_2,_3)),"remove distance field from kinbody");
       RegisterCommand("create",orcwrap(boost::bind(&mod::create,this,_1,_2,_3)),"create a chomp run");
-      RegisterCommand("iterate",orcwrap(boost::bind(&mod::iterate,this,_1,_2,_3)),"create a chomp run");
-      RegisterCommand("gettraj",orcwrap(boost::bind(&mod::gettraj,this,_1,_2,_3)),"create a chomp run");
-      RegisterCommand("destroy",orcwrap(boost::bind(&mod::destroy,this,_1,_2,_3)),"create a chomp run");
+      RegisterCommand("iterate",orcwrap(boost::bind(&mod::iterate,this,_1,_2,_3)),"iterates a chomp run");
+      RegisterCommand("gettraj",orcwrap(boost::bind(&mod::gettraj,this,_1,_2,_3)),"gets trajectory from a chomp run");
+      RegisterCommand("getcost", orcwrap(boost::bind(&mod::getcost,this,_1,_2,_3)), "gets cost of a trajectory");
+      RegisterCommand("destroy",orcwrap(boost::bind(&mod::destroy,this,_1,_2,_3)), "destroy a chomp run");
       
       this->e = penv;
       this->n_sdfs = 0;

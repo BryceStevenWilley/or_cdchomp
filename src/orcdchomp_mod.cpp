@@ -3058,6 +3058,92 @@ int mod::gettraj(int argc, char * argv[], std::ostream& sout)
    return 0;
 }
 
+int mod::getcost(int argc, char * argv[], std::ostream& sout)
+{
+   int i;
+   double cost_total, cost_obs, cost_smooth;
+   OpenRAVE::TrajectoryBasePtr starttraj;
+   struct run * r = 0;
+   for (i = 1; i < argc; i++)
+   {
+      if (strcmp(argv[i], "run")==0 && i+1<argc)
+      {
+            if (r) throw OpenRAVE::openrave_exception("Only one r can be passed!");
+            int nscan = sscanf(argv[++i], "%p", &r);
+            if (nscan != 1) throw OpenRAVE::openrave_exception("Could not parse r!");
+      }  
+      else if (strcmp(argv[i],"starttraj")==0 && i+1<argc)
+      {
+         if (starttraj.get()) { throw OpenRAVE::openrave_exception("Only one starttraj can be passed!"); }
+         starttraj = RaveCreateTrajectory(this->e);
+         std::string my_string(argv[++i]);
+         std::istringstream ser_iss(my_string);
+         starttraj->deserialize(ser_iss);
+      }
+      else break;
+   }
+   if (i < argc)
+   {
+      for (; i<argc; i++) RAVELOG_ERROR("argument %s not known!\n", argv[i]);
+      throw OpenRAVE::openrave_exception("Bad arguments!");
+   }
+
+   
+   // Save the existing trajectory from the chomp instance (r->c).
+   int n = (r->floating_base ? 7 : 0) + r->n_adof; /* floating base pose */
+   double * old_traj = (double *) malloc((r->n_points) * n * sizeof(double));
+   cd_mat_memcpy(old_traj, r->traj, r->n_points, n);
+   // Load in the new trajectory to find the cost for.
+   /* fill the starting and ending points */
+   if (r->floating_base)
+   {
+     /* get base transform config spec */
+     OpenRAVE::ConfigurationSpecification basetx_spec;
+     basetx_spec.AddGroup(boost::str(boost::format("affine_transform %s %d") % r->robot->GetName() % OpenRAVE::DOF_Transform), 7, "linear");
+     
+     /* get base tx and active dofs */
+     for (i=0; i<r->n_points; i++)
+     {
+        std::vector<OpenRAVE::dReal> vec;
+        
+        vec.clear();
+        starttraj->Sample(vec, i*starttraj->GetDuration()/((r->n_points)-1), basetx_spec);
+        r->traj[i*n+0] = vec[0];
+        r->traj[i*n+1] = vec[1];
+        r->traj[i*n+2] = vec[2];
+        r->traj[i*n+3] = vec[4];
+        r->traj[i*n+4] = vec[5];
+        r->traj[i*n+5] = vec[6];
+        r->traj[i*n+6] = vec[3];
+        cd_kin_pose_normalize(&r->traj[i*n]);
+        
+        vec.clear();
+        starttraj->Sample(vec, i*starttraj->GetDuration()/((r->n_points)-1), r->robot->GetActiveConfigurationSpecification());
+        for (int j=0; j<r->n_adof; j++)
+           r->traj[i*n+7+j] = vec[j];
+     }
+   }
+   else
+   {
+     for (i=0; i<r->n_points; i++)
+     {
+        std::vector<OpenRAVE::dReal> vec;
+        starttraj->Sample(vec, i*starttraj->GetDuration()/((r->n_points)-1), r->robot->GetActiveConfigurationSpecification());
+        for (int j=0; j<r->n_adof; j++)
+           r->traj[i*n+j] = vec[j];
+     }
+   }
+
+   // Get the cost(s).
+   int ret = cd_chomp_iterate(r->c, 0, &cost_total, &cost_obs, &cost_smooth);
+   // Load back the old trajectory.
+   cd_mat_memcpy(r->traj, old_traj, r->n_points, n);
+   // Return the costs (TODO(brycew): array of 3 doubles?)
+   sout << cost_total;
+  
+   return 0;
+}
+
 int mod::destroy(int argc, char * argv[], std::ostream& sout)
 {
    int i;
