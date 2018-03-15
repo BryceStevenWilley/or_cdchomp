@@ -33,6 +33,7 @@ def bind(mod):
    mod.create = types.MethodType(create,mod)
    mod.iterate = types.MethodType(iterate,mod)
    mod.gettraj = types.MethodType(gettraj,mod)
+   mod.getcost = types.MethodType(getcost,mod)
    mod.destroy = types.MethodType(destroy,mod)
    mod.runchomp = types.MethodType(runchomp,mod)
 
@@ -195,6 +196,15 @@ def gettraj(mod, run=None, no_collision_check=None, no_collision_exception=None,
    out_traj_data = mod.SendCommand(cmd, releasegil)
    return openravepy.RaveCreateTrajectory(mod.GetEnv(),'').deserialize(out_traj_data)
    
+def getcost(mod, run=None, starttraj=None, releasegil=False):
+   cmd = 'getcost'
+   if run is not None:
+      cmd += ' run %s' % run
+   if starttraj is not None:
+      in_traj_data = starttraj.serialize(0) # options
+      cmd += ' starttraj %s' % shquot(in_traj_data)
+   return mod.SendCommand(cmd, releasegil)
+
 def destroy(mod, run=None, releasegil=False):
    cmd = 'destroy'
    if run is not None:
