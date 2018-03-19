@@ -47,7 +47,6 @@ def viewspheres(mod, robot=None, releasegil=False):
          cmd += ' robot %s' % shquot(robot.GetName())
       else:
          cmd += ' robot %s' % shquot(robot)
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def computedistancefield(mod, kinbody=None, cube_extent=None, aabb_padding=None,
@@ -66,7 +65,6 @@ def computedistancefield(mod, kinbody=None, cube_extent=None, aabb_padding=None,
       cmd += ' cache_filename %s' % shquot(cache_filename)
    if require_cache is not None and require_cache:
       cmd += ' require_cache'
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def addfield_fromobsarray(mod, kinbody=None, obsarray=None, sizes=None, lengths=None,
@@ -85,12 +83,10 @@ def addfield_fromobsarray(mod, kinbody=None, obsarray=None, sizes=None, lengths=
       cmd += ' lengths %s' % shquot(' '.join([str(v) for v in lengths]))
    if pose is not None:
       cmd += ' pose %s' % shquot(' '.join([str(v) for v in pose]))
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def viewfields(mod, releasegil=False):
    cmd = 'viewfields'
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def removefield(mod, kinbody=None, releasegil=False):
@@ -100,7 +96,6 @@ def removefield(mod, kinbody=None, releasegil=False):
          cmd += ' kinbody %s' % shquot(kinbody.GetName())
       else:
          cmd += ' kinbody %s' % shquot(kinbody)
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def create(mod, robot=None, adofgoal=None, basegoal=None, floating_base=None, lambda_=None,
@@ -164,7 +159,6 @@ def create(mod, robot=None, adofgoal=None, basegoal=None, floating_base=None, la
       cmd += ' no_report_cost'
    if dat_filename is not None:
       cmd += ' dat_filename %s' % shquot(dat_filename)
-   print 'cmd:', cmd
    return mod.SendCommand(cmd, releasegil)
 
 def iterate(mod, run=None, n_iter=None, max_time=None, trajs_fileformstr=None,
@@ -203,7 +197,7 @@ def getcost(mod, run=None, starttraj=None, releasegil=False):
    if starttraj is not None:
       in_traj_data = starttraj.serialize(0) # options
       cmd += ' starttraj %s' % shquot(in_traj_data)
-   return mod.SendCommand(cmd, releasegil)
+   return float(mod.SendCommand(cmd, releasegil))
 
 def destroy(mod, run=None, releasegil=False):
    cmd = 'destroy'
