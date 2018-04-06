@@ -44,6 +44,7 @@ extern "C" {
 #include <openrave/planningutils.h>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include "orcdchomp_kdata.h"
 #include "orcdchomp_mod.h"
@@ -2711,8 +2712,10 @@ int mod::create(int argc, char * argv[], std::ostream& sout)
    err = cd_chomp_init(c);
    if (err) { exc = "Error initializing chomp instance."; goto error; }
 
-   // TODO(brycew): for fp dat, write out an open json brace.
-
+   if (r->fp_dat)
+   {
+         fprintf(r->fp_dat, "[\n");
+   }
 
    /* save the chomp */
    r->c = c;
@@ -2793,7 +2796,6 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
    /* convenience stuff */
    c = r->c;
    
-
    lockenv = OpenRAVE::EnvironmentMutex::scoped_lock(this->e->GetMutex());
    
    /* start timing! */
@@ -2865,7 +2867,7 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
          clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ticks_toc);
          CD_OS_TIMESPEC_SUB(&ticks_toc, &ticks_tic);
          CD_OS_TIMESPEC_ADD(&ticks_toc, &ticks);
-         fprintf(r->fp_dat, "iter: %d, seconds_elapsed: %f, cost: %f, cost_obs: %f, cost_smooth: %f\n",
+         fprintf(r->fp_dat, "{\"iter\": %d, \"seconds_elapsed\": %f, \"cost\": %f, \"cost_obs\": %f, \"cost_smooth\": %f},\n",
             r->iter, CD_OS_TIMESPEC_DOUBLE(&ticks_toc), cost_total, cost_obs, cost_smooth);
       }
       
@@ -2880,7 +2882,11 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
    }
    
    cd_chomp_iterate(c, 0, &cost_total, &cost_obs, &cost_smooth);
+
    RAVELOG_INFO("iter:%2d cost_total:%f cost_obs:%f cost_smooth:%f [FINAL]\n", r->iter, cost_total, cost_obs, cost_smooth);
+   if (r->fp_dat)
+       fprintf(r->fp_dat, "{\"iter\": %d, \"seconds_elapsed\": %f, \"cost\": %f, \"cost_obs\": %f, \"cost_smooth\": %f}\n",
+       r->iter, CD_OS_TIMESPEC_DOUBLE(&ticks_toc), cost_total, cost_obs, cost_smooth);
    
    RAVELOG_DEBUG("done!\n");
 
@@ -2917,8 +2923,6 @@ int mod::gettraj(int argc, char * argv[], std::ostream& sout)
    OpenRAVE::TrajectoryBasePtr t;
    OpenRAVE::RobotBasePtr boostrobot;
    
-   // TODO(brycew): send close brace and close file to r->file_dat.
-
    /* parse arguments */
    for (i=1; i<argc; i++)
    {
@@ -2946,6 +2950,12 @@ int mod::gettraj(int argc, char * argv[], std::ostream& sout)
    boostrobot = this->e->GetRobot(r->robot->GetName());
    
    lockenv = OpenRAVE::EnvironmentMutex::scoped_lock(this->e->GetMutex());
+
+   if (r->fp_dat)
+   {
+      fprintf(r->fp_dat, "]");
+      fflush(r->fp_dat);
+   }
    
    /* create an openrave trajectory from the result, and send to sout */
    t = OpenRAVE::RaveCreateTrajectory(this->e);
