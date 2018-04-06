@@ -2710,7 +2710,10 @@ int mod::create(int argc, char * argv[], std::ostream& sout)
    /* Initialize CHOMP */
    err = cd_chomp_init(c);
    if (err) { exc = "Error initializing chomp instance."; goto error; }
-   
+
+   // TODO(brycew): for fp dat, write out an open json brace.
+
+
    /* save the chomp */
    r->c = c;
    
@@ -2790,6 +2793,7 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
    /* convenience stuff */
    c = r->c;
    
+
    lockenv = OpenRAVE::EnvironmentMutex::scoped_lock(this->e->GetMutex());
    
    /* start timing! */
@@ -2861,7 +2865,7 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
          clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ticks_toc);
          CD_OS_TIMESPEC_SUB(&ticks_toc, &ticks_tic);
          CD_OS_TIMESPEC_ADD(&ticks_toc, &ticks);
-         fprintf(r->fp_dat, "%d %f %f %f %f\n",
+         fprintf(r->fp_dat, "iter: %d, seconds_elapsed: %f, cost: %f, cost_obs: %f, cost_smooth: %f\n",
             r->iter, CD_OS_TIMESPEC_DOUBLE(&ticks_toc), cost_total, cost_obs, cost_smooth);
       }
       
@@ -2913,6 +2917,8 @@ int mod::gettraj(int argc, char * argv[], std::ostream& sout)
    OpenRAVE::TrajectoryBasePtr t;
    OpenRAVE::RobotBasePtr boostrobot;
    
+   // TODO(brycew): send close brace and close file to r->file_dat.
+
    /* parse arguments */
    for (i=1; i<argc; i++)
    {
