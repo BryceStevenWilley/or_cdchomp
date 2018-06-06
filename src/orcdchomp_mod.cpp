@@ -2850,27 +2850,38 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
 
       int ret = cd_chomp_iterate(c, 1, &cost_total, &cost_obs, &cost_smooth);
       RAVELOG_INFO("iter:%2d cost_total:%f cost_obs:%f cost_smooth:%f\n", r->iter, cost_total, cost_obs, cost_smooth);
-      if (ret==-1) 
+      if (ret==-1)
       {
          RAVELOG_ERROR("stuck outside of joint limits\n");
          throw OpenRAVE::openrave_exception("Resulting trajectory is outside of joint limits!");
       }
-      
+
       /* normalize quaternions */
       if (r->floating_base)
         for (i=0; i<r->n_points; i++)
           cd_kin_pose_normalize(&r->traj[i*c->n]);
-      
+
       /* dump stats to data file (note these stats are for trajectory before this iteration) */
       if (r->fp_dat)
       {
          clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ticks_toc);
          CD_OS_TIMESPEC_SUB(&ticks_toc, &ticks_tic);
          CD_OS_TIMESPEC_ADD(&ticks_toc, &ticks);
-         fprintf(r->fp_dat, "{\"iter\": %d, \"seconds_elapsed\": %f, \"cost\": %f, \"cost_obs\": %f, \"cost_smooth\": %f},\n",
-            r->iter, CD_OS_TIMESPEC_DOUBLE(&ticks_toc), cost_total, cost_obs, cost_smooth);
+         double path_length = 0.0;
+         for (int i = 1; i < r->n_points; i++)
+         {
+             double dist = 0.0;
+             for (int j = 0; j < c->n; j++)
+             {
+                 double diff = r->traj[i*c->n + j] - r->traj[(i-1)*c->n + j];
+                 dist += diff * diff;
+             }
+             path_length += sqrt(dist);
+         }
+         fprintf(r->fp_dat, "{\"iter\": %d, \"seconds_elapsed\": %f, \"cost\": %f, \"length\": %f, \"cost_obs\": %f, \"cost_smooth\": %f},\n",
+                 r->iter, CD_OS_TIMESPEC_DOUBLE(&ticks_toc), cost_total, path_length, cost_obs, cost_smooth);
       }
-      
+
       /* quit if we're over time! */
       {
          clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ticks_toc);
@@ -2880,7 +2891,6 @@ int mod::iterate(int argc, char * argv[], std::ostream& sout)
             break;
       }
    }
-   
    cd_chomp_iterate(c, 0, &cost_total, &cost_obs, &cost_smooth);
 
    RAVELOG_INFO("iter:%2d cost_total:%f cost_obs:%f cost_smooth:%f [FINAL]\n", r->iter, cost_total, cost_obs, cost_smooth);
