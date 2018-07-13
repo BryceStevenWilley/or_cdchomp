@@ -98,6 +98,8 @@ struct cd_chomp
    struct timespec ticks_callbacks;
    struct timespec ticks_smoothgrad;
    struct timespec ticks_smoothcost;
+
+   unsigned int callback_count;
 };
 
 /* Step 1: create a problem of the correct dimension

@@ -83,6 +83,7 @@ int cd_chomp_create(struct cd_chomp ** cp, int m, int n, int D, double * T, int 
    cd_os_timespec_set_zero(&c->ticks_callbacks);
    cd_os_timespec_set_zero(&c->ticks_smoothgrad);
    cd_os_timespec_set_zero(&c->ticks_smoothcost);
+   c->callback_count = 0;
    /* constraint stuff */
    c->cons = 0;
    c->cons_k = 0;
@@ -503,6 +504,7 @@ int cd_chomp_iterate(struct cd_chomp * c, int do_iteration, double * costp_total
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    cd_os_timespec_sub(&toc, &tic);
    cd_os_timespec_add(&c->ticks_callbacks, &toc);
+   c->callback_count += 1;
 #endif
    
    /* do chomp iteration itself */

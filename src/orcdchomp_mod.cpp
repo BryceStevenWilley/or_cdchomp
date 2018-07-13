@@ -2061,7 +2061,12 @@ int mod::create(int argc, char * argv[], std::ostream& sout)
          starttraj->deserialize(ser_iss);
       }
       else if (strcmp(argv[i],"n_points")==0 && i+1<argc)
-         r->n_points = atoi(argv[++i]);
+      {
+         if (starttraj)
+            r->n_points = std::max(atoi(argv[++i]), (int)starttraj->GetNumWaypoints());
+         else
+            r->n_points = atoi(argv[++i]);
+      }
       else if (strcmp(argv[i],"derivative")==0 && i+1<argc)
          D = atoi(argv[++i]);
       else if (strcmp(argv[i],"use_momentum")==0)
@@ -2424,8 +2429,25 @@ int mod::create(int argc, char * argv[], std::ostream& sout)
    if (starttraj.get())
    {
       RAVELOG_INFO("Initializing from a passed trajectory ...\n");
+      // Why doesn't OpenRAVE have a get length function? Why?
+      double full_length = 0.0;
+      std::vector<double> segment_lengths;
+      for (i = 0; i < starttraj->GetNumWaypoints() - 1; i++)
+      {
+         std::vector<OpenRAVE::dReal> q1;
+         std::vector<OpenRAVE::dReal> q2;
+         starttraj->GetWaypoint(i, q1, r->robot->GetActiveConfigurationSpecification());
+         starttraj->GetWaypoint(i + 1, q2, r->robot->GetActiveConfigurationSpecification());
+         double distance = 0.0;
+         for (int j = 0; j < q1.size(); j++)
+            distance += q2[j] - q1[j];
+         distance = sqrt(distance);
+         full_length += distance;
+         segment_lengths.push_back(distance);
+      }
       if (r->floating_base)
       {
+         // TODO: floating base doesn't do the right interp: it cuts corners.
         /* get base transform config spec */
         OpenRAVE::ConfigurationSpecification basetx_spec;
         basetx_spec.AddGroup(boost::str(boost::format("affine_transform %s %d") % r->robot->GetName() % OpenRAVE::DOF_Transform), 7, "linear");
@@ -2454,13 +2476,62 @@ int mod::create(int argc, char * argv[], std::ostream& sout)
       }
       else
       {
-        for (i=0; i<r->n_points; i++)
+        // Interpolate without cutting corners.    
+        i = 0; // The nodes avaliable.
+        int count = r->n_points;
+        double remainingLength = full_length;
+        // We set n_points to always be bigger than input path.
+        const int n1 = starttraj->GetNumWaypoints() - 1;
+        for (int old_i = 0; old_i < n1; old_i++)
         {
            std::vector<OpenRAVE::dReal> vec;
-           starttraj->Sample(vec, i*starttraj->GetDuration()/((r->n_points)-1), r->robot->GetActiveConfigurationSpecification());
+           starttraj->GetWaypoint(old_i, vec, r->robot->GetActiveConfigurationSpecification());
            for (j=0; j<r->n_adof; j++)
+           {
               r->traj[i*n+j] = vec[j];
+           }
+           i++;
+           // The maximum number of states that can be added on the current motion (without endpoints)
+           int maxNStates = count + old_i - starttraj->GetNumWaypoints(); 
+           if (maxNStates > 0)
+           {
+              double segmentLength = segment_lengths[i];
+              int ns =
+                old_i + 1 == n1 ? maxNStates + 2 : (int)floor(0.5 + (double)count * segmentLength / remainingLength) + 1;
+              
+              if (ns > 2)
+              {
+                    ns -= 2;
+                    if (ns > maxNStates)
+                       ns = maxNStates;
+
+                     std::vector<OpenRAVE::dReal> q2;
+                     starttraj->GetWaypoint(old_i + 1, q2, r->robot->GetActiveConfigurationSpecification());
+                     for (int idx = 1; idx <= ns; idx++)
+                     {
+                        double split = idx * 1.0 / (ns + 1.0);
+                        for (j=0; j<r->n_adof; j++)
+                        {
+                           r->traj[i*n+j] = vec[j] + (q2[j] - vec[j]) * split;
+                        }
+                        i++;
+                     }
+              }
+              else
+                 ns = 0;
+
+               // update what remains to be done
+               count -= (ns + 1);
+               remainingLength -= segmentLength;
+           }
+           else
+              count--;
         }
+        // add the last state.
+        std::vector<OpenRAVE::dReal> vec;
+        starttraj->GetWaypoint(starttraj->GetNumWaypoints() - 1, vec, r->robot->GetActiveConfigurationSpecification());
+        for (j=0; j<r->n_adof; j++)
+           r->traj[i*n+j] = vec[j];
       }
    }
    else
